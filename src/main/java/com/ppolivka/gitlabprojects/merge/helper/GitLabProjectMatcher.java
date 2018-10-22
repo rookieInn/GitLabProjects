@@ -23,7 +23,7 @@ public class GitLabProjectMatcher {
             try {
                 Collection<GitlabProject> projects = settingsState.api(repository).getProjects();
                 for (GitlabProject gitlabProject : projects) {
-                    if (gitlabProject.getName().toLowerCase().equals(remoteProjectName.toLowerCase()) || urlMatch(remoteUrl, gitlabProject.getSshUrl()) || urlMatch(remoteUrl, gitlabProject.getHttpUrl())) {
+                    if (gitlabProject.getName().toLowerCase().equals(remoteProjectName.toLowerCase()) || urlMatch(remoteUrl, gitlabProject.getSshUrl()) || urlMatch(remoteUrl.replaceAll("//.+@","//"), gitlabProject.getHttpUrl())) {
                         Integer projectId = gitlabProject.getId();
                         projectState.setProjectId(remoteUrl, projectId);
                         return Optional.of(gitlabProject);

@@ -196,7 +196,7 @@ public class SettingsState implements PersistentStateComponent<SettingsState> {
         for (GitRemote gitRemote : gitRepository.getRemotes()) {
             for (String remoteUrl : gitRemote.getUrls()) {
                 for(GitlabServer server : getGitlabServers()) {
-                    if(remoteUrl.contains(server.getRepositoryUrl()))
+                    if(remoteUrl.replaceAll("//.+@", "//").contains(server.getRepositoryUrl()))
                         return server;
                     }
                 }
