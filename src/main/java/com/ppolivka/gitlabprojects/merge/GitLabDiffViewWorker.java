@@ -11,6 +11,7 @@ import com.ppolivka.gitlabprojects.merge.info.BranchInfo;
 import com.ppolivka.gitlabprojects.merge.info.DiffInfo;
 import com.ppolivka.gitlabprojects.util.GitLabUtil;
 import git4idea.GitCommit;
+import git4idea.GitExecutionException;
 import git4idea.changes.GitChangeUtils;
 import git4idea.history.GitHistoryUtils;
 import git4idea.repo.GitRepository;
@@ -68,7 +69,7 @@ public class GitLabDiffViewWorker {
             return;
         }
 
-        GitCompareBranchesDialog dialog = new GitCompareBranchesDialog(project, info.getTo(), info.getFrom(), info.getInfo(), gitRepository, true);
+        GitCompareBranchesDialog dialog = new GitCompareBranchesDialog(project, info.getFrom(), info.getTo(), info.getInfo(), gitRepository, true);
         dialog.show();
 
     }
@@ -78,7 +79,6 @@ public class GitLabDiffViewWorker {
         if (branch.getName() == null) {
             return null;
         }
-
         try {
             return launchLoadDiffInfo(from, branch).get();
         } catch (InterruptedException e) {
@@ -133,15 +133,28 @@ public class GitLabDiffViewWorker {
     private DiffInfo doLoadDiffInfo(@NotNull final BranchInfo from, @NotNull final BranchInfo to) throws VcsException {
         String currentBranch = from.getFullName();
         String targetBranch = to.getFullRemoteName();
-
-        List<GitCommit> commits1 = GitHistoryUtils.history(project, gitRepository.getRoot(), ".." + targetBranch);
-        List<GitCommit> commits2 = GitHistoryUtils.history(project, gitRepository.getRoot(), targetBranch + "..");
         Collection<Change> diff = GitChangeUtils.getDiff(project, gitRepository.getRoot(), targetBranch, currentBranch, null);
-        GitCommitCompareInfo info = new GitCommitCompareInfo(GitCommitCompareInfo.InfoType.BRANCH_TO_HEAD);
+        GitCommitCompareInfo info = new GitCommitCompareInfo(GitCommitCompareInfo.InfoType.BOTH);
         info.put(gitRepository, diff);
-        info.put(gitRepository, Couple.of(commits1, commits2));
-
+        info.put(gitRepository, loadCommitsToCompare(gitRepository, currentBranch, targetBranch));
         return new DiffInfo(info, currentBranch, targetBranch);
+    }
+
+    @NotNull
+    private Couple<List<GitCommit>> loadCommitsToCompare(@NotNull GitRepository repository, @NotNull final String currentBranch, @NotNull final String targetBranch) {
+        final List<GitCommit> commitExitsInTargetDontExitsInCurrent;
+        final List<GitCommit> commitExitsInCurrentDontExitsInTarget;
+        try {
+            commitExitsInTargetDontExitsInCurrent = GitHistoryUtils.history(project, repository.getRoot(), targetBranch + ".." + currentBranch );
+        } catch (VcsException e) {
+            throw new GitExecutionException("Couldn't exec [ git log " + targetBranch + ".." + currentBranch  +" ] on repository [" + repository.getRoot() + "]", e);
+        }
+        try {
+            commitExitsInCurrentDontExitsInTarget = GitHistoryUtils.history(project, repository.getRoot(), currentBranch + ".." + targetBranch);
+        } catch (VcsException e) {
+            throw new GitExecutionException("Couldn't exec [ git log " + currentBranch + ".." + targetBranch +" ] on repository [" + repository.getRoot() + "]", e);
+        }
+        return Couple.of(commitExitsInTargetDontExitsInCurrent, commitExitsInCurrentDontExitsInTarget);
     }
 
 }
